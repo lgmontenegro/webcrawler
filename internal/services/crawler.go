@@ -4,70 +4,116 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-
-	"github.com/lgmontenegro/webcrawler/internal/domain"
+	"sync"
 )
 
-type Crawler struct {
-	Job []domain.SiteContent
+func ExecuteCrawler(urls []string) bool {
+	return crawlUrls(urls)
 }
 
-func (c *Crawler) Execute(urls []string) {
-	//c.setup(urls)
-	c.crawlUrls(urls)
+func crawlUrls(urls []string) bool {
+	urlChannel := make(chan string, len(urls))
+	urlContent := make(chan string, len(urls))
+	parsedLinks := make(chan []string, len(urls))
+	errorChannel := make(chan error, len(urls))
 
-	for _, t := range c.Job {
-		fmt.Println("URL: ", t.SiteURL)
-		fmt.Println("content: ", string(t.Content))
-	}
-}
-/*
-func (c *Crawler) setup(urls []string) {
+	var wg sync.WaitGroup
+	var m sync.Mutex
+
 	for _, url := range urls {
-		c.Job = append(c.Job, domain.SiteContent{
-			SiteURL: url,
-			Content: []byte{},
-		})
-	}
-}*/
+		wg.Add(1)
+		urlChannel <- url
 
-func (c *Crawler) crawlUrls(urls []string) {
-	/*urlChannel := make(chan string, len(c.Job))
-	contentToRet := make(chan []byte, len(c.Job))
-	errorChannel := make(chan error, len(c.Job))*/
-
-	for i, job := range c.Job {
-		urlChannel <- job.SiteURL
 		go func() {
-			urlChannelString := <-urlChannel
-			content, err := fetchURL(urlChannelString)
-
-			contentToRet <- content
-			errorChannel <- err
+			fetchURL(urlChannel, urlContent, errorChannel, &wg, &m)
+			parseLinks(<- urlContent, errorChannel, parsedLinks, &wg)
 		}()
-
-		err := <-errorChannel
-		if err != nil {
-			fmt.Println(err)
-		}
-
-		contentToRetByte := <-contentToRet
-		c.Job[i].Content = contentToRetByte
 	}
+	wg.Wait()
+
+	showErrors(errorChannel)
+
+	fmt.Println("link total:", len(parsedLinks))
+	if len(parsedLinks) > 0 {		
+		for len(parsedLinks) >0  {
+			links := <- parsedLinks
+			fmt.Println(len(links))
+			for i, link := range links {
+				fmt.Println(i, link)
+			}
+			
+		}
+	}
+		
+	return true
 }
 
-func fetchURL(url string) (body []byte, err error) {
-
-	resp, err := http.Get(url)
+func fetchURL(
+	urlChannel chan string,
+	urlContent chan string,
+	errorChannel chan error,	
+	wg *sync.WaitGroup,
+	m *sync.Mutex,
+) {
+	m.Lock()
+	req, err := http.NewRequest("GET", <- urlChannel, nil)	
 	if err != nil {
-		return []byte{}, err
+		urlContent <- ""
+		errorChannel <- err
+		defer wg.Done()
+		return
 	}
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		urlContent <- ""
+		errorChannel <- err
+		defer wg.Done()
+		return
+	}
+
 	defer resp.Body.Close()
 
-	body, err = io.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return []byte{}, err
+		urlContent <- ""
+		errorChannel <- err
+		defer wg.Done()
+		return
 	}
 
-	return body, nil
+	urlContent <- string(body)
+	m.Unlock()
+}
+
+func parseLinks(	
+	urlContent string,
+	errorChannel chan error,
+	parsedLinks chan []string,
+	wg *sync.WaitGroup,
+) {	
+	body := urlContent
+	links, err := ParseLinks(body)
+	if err != nil {
+		parsedLinks <- []string{}
+		errorChannel <- err
+		defer wg.Done()
+		return
+	}
+
+	parsedLinks <- links
+	errorChannel <-err
+	defer wg.Done()
+}
+
+func showErrors(errorChannel chan error) {
+	if len(errorChannel) > 0 {
+		for len(errorChannel) >0  {
+			if err := <- errorChannel; err != nil {
+				fmt.Println("erro:", <- errorChannel)
+			}
+			
+		}
+	}
 }

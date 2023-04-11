@@ -16,17 +16,23 @@ var rootCmd = &cobra.Command{
 				  Complete documentation is available at http://hugo.spf13.com`,
 	Run: func(cmd *cobra.Command, args []string) {
 		a := app.App{
-			InputURL: append([]string{
+			/*InputURL: append([]string{
 				"https://gobyexample.com6",
 				"https://gobyexample.com5",
 				"https://gobyexample.com4",
 				"https://gobyexample.com3",
 				"https://gobyexample.com2",
 				"https://gobyexample.com1",
-			}),
+			}),*/
+
+			InputURL: []string{"https://gobyexample.com/stateful-goroutines"},
 		}
 
-		a.Execute()
+		if a.Execute() {
+			os.Exit(0)
+		}
+
+		os.Exit(1)
 	},
 }
 

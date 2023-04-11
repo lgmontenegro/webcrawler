@@ -6,7 +6,6 @@ type App struct {
 	InputURL []string
 }
 
-func (a *App) Execute() {
-	crawler := services.Crawler{}
-	crawler.Execute(a.InputURL)
+func (a *App) Execute()(bool) {
+	return services.ExecuteCrawler(a.InputURL)
 }
