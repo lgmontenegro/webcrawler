@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"sync"
+	//"sync"
 )
 
 func ExecuteCrawler(urls []string) bool {
@@ -12,24 +12,24 @@ func ExecuteCrawler(urls []string) bool {
 }
 
 func crawlUrls(urls []string) bool {
-	urlChannel := make(chan string, len(urls))
-	urlContent := make(chan string, len(urls))
+	urlChannel := make(chan string, len(urls))	
 	parsedLinks := make(chan []string, len(urls))
 	errorChannel := make(chan error, len(urls))
 
-	var wg sync.WaitGroup
-	var m sync.Mutex
+	//var wg sync.WaitGroup	
 
-	for _, url := range urls {
-		wg.Add(1)
+	
+	for _, url := range urls {		
+		//wg.Add(1)
 		urlChannel <- url
 
 		go func() {
-			fetchURL(urlChannel, urlContent, errorChannel, &wg, &m)
-			parseLinks(<- urlContent, errorChannel, parsedLinks, &wg)
+			links := fetchURL(urlChannel, errorChannel)
+				//, &wg)
+			parsedLinks <-links
 		}()
 	}
-	wg.Wait()
+	//wg.Wait()
 
 	showErrors(errorChannel)
 
@@ -49,63 +49,58 @@ func crawlUrls(urls []string) bool {
 }
 
 func fetchURL(
-	urlChannel chan string,
-	urlContent chan string,
+	urlChannel chan string,	
 	errorChannel chan error,	
-	wg *sync.WaitGroup,
-	m *sync.Mutex,
-) {
-	m.Lock()
+	//wg *sync.WaitGroup,	
+) (urlContent []string) {
 	req, err := http.NewRequest("GET", <- urlChannel, nil)	
 	if err != nil {
-		urlContent <- ""
+		urlContent = []string{}
 		errorChannel <- err
-		defer wg.Done()
+		//defer wg.Done()
 		return
 	}
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
-	if err != nil {
-		urlContent <- ""
+	if err != nil {		
 		errorChannel <- err
-		defer wg.Done()
-		return
+		//defer wg.Done()
+		return []string{}
 	}
 
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		urlContent <- ""
+	if err != nil {		
 		errorChannel <- err
-		defer wg.Done()
-		return
+		//defer wg.Done()
+		return []string{}
 	}
 
-	urlContent <- string(body)
-	m.Unlock()
+	parsedLinks, err := ParseLinks(string(body))
+	if err != nil {		
+		errorChannel <- err
+		return []string{}
+	}
+
+	//defer wg.Done()
+	return parsedLinks
 }
 
-func parseLinks(	
+/*func parseLinks(	
 	urlContent string,
-	errorChannel chan error,
-	parsedLinks chan []string,
-	wg *sync.WaitGroup,
-) {	
-	body := urlContent
-	links, err := ParseLinks(body)
-	if err != nil {
-		parsedLinks <- []string{}
+	errorChannel chan error,		
+)(parsedLinks []string) {	
+	parsedLinks, err := ParseLinks(urlContent)
+	if err != nil {		
 		errorChannel <- err
-		defer wg.Done()
-		return
+		return []string{}
 	}
 
-	parsedLinks <- links
 	errorChannel <-err
-	defer wg.Done()
-}
+	return parsedLinks
+}*/
 
 func showErrors(errorChannel chan error) {
 	if len(errorChannel) > 0 {

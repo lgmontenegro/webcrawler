@@ -23,13 +23,15 @@ func ParseLinks(content string) (links []string, err error) {
 			}
 		}
 		for c := node.FirstChild; c != nil; c = c.NextSibling {
-			readNodes(c)
+			//readNodes(c)
+			links = append(links, readNodes(doc)...)
 		}
 
 		return links
 	}
 
-	links = readNodes(doc)
+	//links = append(links, readNodes(doc)...)
+	readNodes(doc)
 
 	return links, nil
 }
