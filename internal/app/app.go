@@ -19,10 +19,10 @@ func (a *App) Execute() bool {
 	return true
 }
 
-func (a *App) setup()(neededServices service.Services, sitesContent []domain.Site){
+func (a *App) setup()(neededServices service.Services, sitesContent []*domain.Site){
 	neededServices = Bootstrap()
 	for _, url := range a.InputURL {
-		sitesContent = append(sitesContent, domain.Site{SiteURL: url})		
+		sitesContent = append(sitesContent, &domain.Site{SiteURL: url})
 	}
 
 	return neededServices, sitesContent

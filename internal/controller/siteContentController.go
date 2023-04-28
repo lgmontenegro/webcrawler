@@ -4,18 +4,19 @@ import (
 	"net/http"
 
 	"github.com/lgmontenegro/webcrawler/internal/domain"
-	"github.com/lgmontenegro/webcrawler/internal/service"
+	srvc "github.com/lgmontenegro/webcrawler/internal/service"
 )
 
 type SiteContentController struct {
 	Service map[string]any
-	Sites   []domain.Site
+	Sites   []*domain.Site
 }
 
-func Setup(services service.Services, sitesContent []domain.Site) (siteController SiteContentController) {
+func Setup(services srvc.Services, sitesContent []*domain.Site) (siteController SiteContentController) {
+	siteController.Service = make(map[string]any, 1)
 	for _, service := range services.Installed {
-		for typeService, s := range service {			
-			siteController.Service[typeService] = s
+		for typeService, s := range service {
+			siteController.Service[typeService] = s			
 		}
 	}
 
@@ -24,9 +25,8 @@ func Setup(services service.Services, sitesContent []domain.Site) (siteControlle
 	return siteController
 }
 
-func (s *SiteContentController) ReturnContents() {
-	
-	crawlerService, _ := s.Service["crawler"].(service.Crawler)
+func (s *SiteContentController) ReturnContents() {	
+	crawlerService, _ := s.Service["crawler"].(srvc.Crawler)
 	httpClient, _ := s.Service["httpClient"].(http.Client)
 
 	for _, site := range s.Sites {
