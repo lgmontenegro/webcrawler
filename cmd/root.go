@@ -1,31 +1,42 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
+	"log"
 	"os"
+	"strings"
 
 	"github.com/lgmontenegro/webcrawler/internal/app"
 	"github.com/spf13/cobra"
 )
 
+var File string
+var URL string
 var rootCmd = &cobra.Command{
 	Use:   "webcrawler",
-	Short: "Hugo is a very fast static site generator",
-	Long: `A Fast and Flexible Static Site Generator built with
-				  love by spf13 and friends in Go.
-				  Complete documentation is available at http://hugo.spf13.com`,
+	Short: "Webcrawler is an assessment test to be part of Parse Digital Consulting",
+	Long: `Webcrawler is an assessment test to be part of Parse Digital Consulting, 
+	parser construct without any 3rd part libraries`,
 	Run: func(cmd *cobra.Command, args []string) {
 		a := app.App{
-			/*InputURL: append([]string{
-				"https://gobyexample.com6",
-				"https://gobyexample.com5",
-				"https://gobyexample.com4",
-				"https://gobyexample.com3",
-				"https://gobyexample.com2",
-				"https://gobyexample.com1",
-			}),*/
+			InputURL: []string{},
+		}
+		if File != "" {
+			urls, err := openURLsFile(File)
+			if err != nil {
+				log.Fatalln(err)
+			}
 
-			InputURL: []string{"https://gobyexample.com/stateful-goroutines"},
+			a.InputURL = urls		
+		}
+
+		if URL != "" {
+			a.InputURL = splitURLsArg(URL)
+		}
+
+		if len(a.InputURL) == 0 {
+			log.Fatalln("No URL supplied")
 		}
 
 		if a.Execute() {
@@ -37,8 +48,38 @@ var rootCmd = &cobra.Command{
 }
 
 func Execute() {
+	rootCmd.PersistentFlags().StringVarP(&File, "file", "f", "", "single file with URLs to be crawled")
+	rootCmd.PersistentFlags().StringVarP(&URL, "url", "u", "", "URLs list to be crawled, separeted by comma (,)")
+
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+}
+
+func openURLsFile(filePath string) (urls []string, err error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return []string{}, err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		urls = append(urls, scanner.Text())
+	}
+
+	if err := scanner.Err(); err != nil {
+		return []string{}, err
+	}
+
+	return urls, nil
+}
+
+func splitURLsArg(urlsString string) (urls []string) {
+	urls = strings.Split(urlsString, ",")
+	for i, url := range urls {
+		urls[i] = strings.TrimSpace(url)
+	}
+	return urls
 }

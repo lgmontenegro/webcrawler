@@ -1,6 +1,10 @@
 package domain
 
-import "net/http"
+import (
+	"fmt"
+	"net/http"
+	"net/url"
+)
 
 type Site struct {
 	SiteURL string
@@ -25,6 +29,34 @@ func (s *Site) ProcessURL(crawler Crawler, client *http.Client)(err error){
 		return err
 	}
 	s.Links = links
+	return s.filterLinks()
+}
+
+func (s *Site) filterLinks()(err error){
+	filteredLinks := []string{}
+	siteURLParsed, err := url.Parse(s.SiteURL)
+	if err != nil {
+		return err
+	}
+
+	for _, link := range s.Links {
+		u, err := url.Parse(link)
+
+		if err != nil {
+			return err
+		}
+
+		if u.Host == "" {
+			link = fmt.Sprintf("%v://%v/%v", siteURLParsed.Scheme, siteURLParsed.Host, link)
+			filteredLinks = append(filteredLinks, link)
+		}
+
+		if u.Host == siteURLParsed.Host{
+			filteredLinks = append(filteredLinks, link)
+		}
+	}
+
+	s.Links = filteredLinks
 
 	return nil
 }

@@ -10,7 +10,8 @@
             "request": "launch",
             "mode": "debug",
             "program": "${workspaceRoot}",
-            "showLog": false
+            "showLog": false,
+            "args": ["-u", "https://gobyexample.com/"]
         }
     ]
 }
