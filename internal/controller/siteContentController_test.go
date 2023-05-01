@@ -24,24 +24,52 @@ func TestSetup(t *testing.T) {
 }
 
 func TestSiteContentController_ReturnContents(t *testing.T) {
-	mockServer := makeServer("/", `<html>
-	<body>
-	<a href="test">Test</a>
-	</body>
-	</html>`)
-	services := service.Setup([]string{"crawler", "httpClient"})
-	sitesContent := make([]*domain.Site,0)
-	sitesContent = append(sitesContent, &domain.Site{SiteURL: mockServer.URL})
-	gotSiteController := Setup(services, sitesContent)
-	gotSiteController.Service["httpClient"] = *mockServer.Client()
-
-	gotSiteController.ReturnContents()
-
-	for _, site := range gotSiteController.Sites {
-		if len(site.Links) != 1 {
-			t.Errorf("got %v, want %v", len(site.Links), 1)
-		}
+	tests := []struct {
+		name    string
+		content string
+		linksQuantity int
+	}{
+		{
+			name: "one link test",
+			content: `<html>
+			<body>
+			<a href="test">Test</a>
+			</body>
+			</html>`,
+			linksQuantity: 1,
+		},
+		{
+			name: "three link test",
+			content: `<html>
+			<body>
+			<a href="test">Test</a>
+			<a href="alpha">Beta</a>
+			<a href="beta">Alpha</a>
+			</body>
+			</html>`,
+			linksQuantity: 3,
+		},
 	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockServer := makeServer("/", tt.content)
+			services := service.Setup([]string{"crawler", "httpClient"})
+			sitesContent := make([]*domain.Site,0)
+			sitesContent = append(sitesContent, &domain.Site{SiteURL: mockServer.URL})
+			gotSiteController := Setup(services, sitesContent)
+			gotSiteController.Service["httpClient"] = *mockServer.Client()
+
+			gotSiteController.ReturnContents()
+
+			for _, site := range gotSiteController.Sites {
+				if len(site.Links) != tt.linksQuantity {
+					t.Errorf("got %v, want %v", len(site.Links), tt.linksQuantity)
+				}
+			}
+		})
+	}
+
+	
 }
 
 func makeServer(path, body string) (server httptest.Server) {
